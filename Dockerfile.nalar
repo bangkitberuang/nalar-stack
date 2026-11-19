@@ -28,14 +28,12 @@ RUN mkdir -p /opt/nalar && \
     ln -sf /opt/nalar/t3 /usr/local/bin/t3 && \
     ln -sf /opt/nalar/t3 /usr/local/bin/nalar
 
-# Apply NALAR branding to web UI & PWA manifest (so "Add to Home Screen" shows NALAR)
-RUN sed -i 's/<title>[^<]*<\/title>/<title>NALAR — AI Coding Harness<\/title>/g' /opt/nalar/client/index.html && \
-    sed -i 's/T3 Code/NALAR/g' /opt/nalar/client/index.html && \
-    sed -i 's/"T3 Code"/"NALAR"/g; s/"T3"/"NALAR"/g' /opt/nalar/client/manifest.webmanifest && \
-    find /opt/nalar/client/assets -type f -name "*.js" -exec sed -i 's/"T3 Code"/"NALAR"/g; s/>T3 Code</>NALAR</g' {} +
-
 # Pre-install popular AI coding agent CLIs (Claude Code & OpenAI Codex)
 RUN npm install -g @anthropic-ai/claude-code @openai/codex && npm cache clean --force
+
+# Apply full NALAR branding (SVG logo, favicon, splash screen, PWA manifest, UI text)
+COPY brand-nalar.py /opt/nalar/brand-nalar.py
+RUN python3 /opt/nalar/brand-nalar.py
 
 # Persistent data/home & workspace mount points
 RUN mkdir -p /data/home /data/t3 /workspace

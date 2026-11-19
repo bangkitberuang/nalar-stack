@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.nalar
     container_name: nalar-engine
+    hostname: nalar-vps
     restart: unless-stopped
     environment:
       - HOME=/data/home
