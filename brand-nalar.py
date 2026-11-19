@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
-"""Apply clean NALAR branding to the prebuilt web client assets in /opt/nalar/client."""
+"""Apply full NALAR branding (official logo PNG, wordmarks, favicon, PWA manifest, UI text)."""
 
 import glob
 import json
 import os
 import re
+import shutil
 
 CLIENT_DIR = "/opt/nalar/client"
-
-# Sleek geometric "N" monogram SVG for favicon, splash screen & PWA icon
-NALAR_ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="28" fill="#0d0d0f"/>
-  <rect x="4" y="4" width="120" height="120" rx="24" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="2"/>
-  <path d="M34 94V34H47.5L80.5 76.5V34H94V94H81L47.5 50.8V94H34Z" fill="#ffffff"/>
-  <circle cx="94" cy="34" r="6" fill="#60a5fa"/>
-</svg>
-"""
-
-# Inline monochrome geometric "N" glyph (fill=currentColor) replacing the hardcoded T3 SVG path
-T3_PATH_PREFIX = "M33.4509 93V47.56H15.5309V37H64.3309"
-NALAR_GLYPH_PATH = "M16 93V37H31L74 79V37H90V93H75L32 51V93H16Z"
-T3_VIEWBOX = "15.5309 37 94.3941 56.96"
-NALAR_VIEWBOX = "14 35 78 60"
+LOGO_SRC = "/opt/nalar/assets/nalar-logo.png"
 
 
-def write_icon():
-    icon_path = os.path.join(CLIENT_DIR, "nalar-icon.svg")
-    with open(icon_path, "w", encoding="utf-8") as f:
-        f.write(NALAR_ICON_SVG)
-    print(f"[brand] Wrote {icon_path}")
+def install_logo_assets():
+    if not os.path.exists(LOGO_SRC):
+        raise FileNotFoundError(f"Official NALAR logo not found at {LOGO_SRC}")
+
+    targets = [
+        "nalar-logo.png",
+        "apple-touch-icon.png",
+        "icon-192x192.png",
+        "icon-512x512.png",
+        "favicon-32x32.png",
+        "favicon-16x16.png",
+        "favicon.ico",
+    ]
+    for name in targets:
+        shutil.copyfile(LOGO_SRC, os.path.join(CLIENT_DIR, name))
+    print(f"[brand] Installed official NALAR logo across {len(targets)} icon files")
 
 
 def patch_index_html():
@@ -40,11 +38,11 @@ def patch_index_html():
     html = html.replace("T3 Code", "NALAR")
     html = html.replace(
         '<link rel="icon" href="/favicon.ico" sizes="48x48" />',
-        '<link rel="icon" type="image/svg+xml" href="/nalar-icon.svg" />',
+        '<link rel="icon" type="image/png" href="/nalar-logo.png" />',
     )
     html = html.replace(
         '<img id="boot-shell-logo" src="/apple-touch-icon.png" alt="NALAR" />',
-        '<img id="boot-shell-logo" src="/nalar-icon.svg" alt="NALAR" />',
+        '<img id="boot-shell-logo" src="/nalar-logo.png" alt="NALAR" />',
     )
 
     with open(path, "w", encoding="utf-8") as f:
@@ -61,8 +59,11 @@ def patch_manifest():
     data["short_name"] = "NALAR"
     data["description"] = "NALAR AI Coding Harness"
     data["icons"] = [
-        {"src": "/nalar-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
-    ] + data.get("icons", [])
+        {"src": "/nalar-logo.png", "sizes": "500x500", "type": "image/png", "purpose": "any"},
+        {"src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png"},
+        {"src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    ]
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
@@ -77,27 +78,25 @@ def patch_js_assets():
 
         updated = src
 
-        # 1. Replace hardcoded T3 monogram SVG path & viewBox with NALAR geometric N mark
-        if T3_PATH_PREFIX in updated:
-            updated = re.sub(
-                r"M33\.4509 93V47\.56H15\.5309[^`\"']+",
-                NALAR_GLYPH_PATH,
-                updated,
-            )
-            updated = updated.replace(T3_VIEWBOX, NALAR_VIEWBOX)
-
-        # 2. Replace the split brand wordmark ("T3" SVG + "Code" span) -> ([N mark] + "NALAR")
-        updated = updated.replace(
-            'children:[r,(0,Z.jsx)(`span`,{className:a,children:`Code`})]',
-            'children:[r,(0,Z.jsx)(`span`,{className:a,children:`NALAR`})]',
-        )
+        # 1. Replace main header T3 SVG + "Code" wordmark with official green NALAR logo + "NALAR"
         updated = re.sub(
-            r'role:`img`,"aria-label":`T3 Code`,children:\[(.*?children:)`Code`',
-            r'role:`img`,"aria-label":`NALAR`,children:[\1`NALAR`',
+            r'\(0,Z\.jsx\)\(yv,\{"aria-label":`T3`,className:`h-\[1cap\] w-auto shrink-0`\}\)',
+            '(0,Z.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-4 w-4 shrink-0 object-contain`})',
+            updated,
+        )
+        updated = updated.replace(
+            'className:`inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight`,children:[r,(0,Z.jsx)(`span`,{className:a,children:`Code`})]',
+            'className:`inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold tracking-tight`,children:[r,(0,Z.jsx)(`span`,{className:a,children:`NALAR`})]',
+        )
+
+        # 2. Replace standalone (/pair) T3 SVG + "Code" wordmark with official green NALAR logo + "NALAR"
+        updated = re.sub(
+            r'className:`flex items-baseline gap-1\.5`,role:`img`,"aria-label":`T3 Code`,children:\[\(0,i\.jsx\)\(a,\{[^}]+\}\),\(0,i\.jsx\)\(`span`,\{className:`text-lg font-medium tracking-tight`,children:`Code`\}\)\]',
+            'className:`flex items-center gap-2`,role:`img`,"aria-label":`NALAR`,children:[(0,i.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-6 w-6 shrink-0 object-contain`}),(0,i.jsx)(`span`,{className:`text-lg font-semibold tracking-tight text-foreground`,children:`NALAR`})]',
             updated,
         )
 
-        # 3. Replace aria-label:`T3` and all visible "T3 Code" display strings -> "NALAR"
+        # 3. Replace any remaining aria-label:`T3` and all visible "T3 Code" display strings -> "NALAR"
         updated = updated.replace('"aria-label":`T3`', '"aria-label":`NALAR`')
         updated = updated.replace("T3 Code", "NALAR")
 
@@ -106,12 +105,12 @@ def patch_js_assets():
                 f.write(updated)
             patched_files += 1
 
-    print(f"[brand] Patched {patched_files} JS asset files with NALAR branding")
+    print(f"[brand] Patched {patched_files} JS asset files with official NALAR logo & branding")
 
 
 if __name__ == "__main__":
-    write_icon()
+    install_logo_assets()
     patch_index_html()
     patch_manifest()
     patch_js_assets()
-    print("[brand] NALAR rebranding complete.")
+    print("[brand] Official NALAR rebranding complete.")

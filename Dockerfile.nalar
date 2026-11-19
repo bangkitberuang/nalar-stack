@@ -31,7 +31,8 @@ RUN mkdir -p /opt/nalar && \
 # Pre-install popular AI coding agent CLIs (Claude Code & OpenAI Codex)
 RUN npm install -g @anthropic-ai/claude-code @openai/codex && npm cache clean --force
 
-# Apply full NALAR branding (SVG logo, favicon, splash screen, PWA manifest, UI text)
+# Apply full NALAR branding (official logo PNG, favicon, splash screen, PWA manifest, UI text)
+COPY assets/nalar-logo.png /opt/nalar/assets/nalar-logo.png
 COPY brand-nalar.py /opt/nalar/brand-nalar.py
 RUN python3 /opt/nalar/brand-nalar.py
 
