@@ -1,0 +1,15 @@
+###############################################################
+#             Authelia Users Database for NALAR               #
+###############################################################
+# Generate hash password using:
+# docker run --rm authelia/authelia:latest authelia crypto hash-password "PasswordRahasiaAnda"
+
+users:
+  admin:
+    displayname: "Owner NALAR"
+    # Salin hash password hasil perintah di atas ke baris bawah ini:
+    password: "$argon2id$v=19$m=65536,t=3,p=4$qL0...isi_hash_password_disini"
+    email: admin@bangkit.io
+    groups:
+      - admins
+      - dev

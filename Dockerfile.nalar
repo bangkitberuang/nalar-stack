@@ -1,0 +1,60 @@
+# Multi-stage Dockerfile for NALAR (Branded T3 Code Harness)
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Install build essentials & git
+RUN apt-get update && apt-get install -y \
+    git \
+    python3 \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Clone upstream repository
+RUN git clone --depth 1 https://github.com/pingdotgg/t3code.git .
+
+# Apply NALAR Branding to web frontend and package titles
+RUN sed -i 's/<title>T3 Code<\/title>/<title>NALAR | AI Coding Harness<\/title>/g' apps/web/index.html || true
+RUN find apps/web/src -type f \( -name "*.tsx" -o -name "*.ts" \) -exec sed -i 's/"T3 Code"/"NALAR"/g; s/>T3 Code</>NALAR</g; s/T3Code/NALAR/g' {} + || true
+
+# Install dependencies and build
+RUN pnpm install
+RUN pnpm build
+
+# --- Runtime Stage ---
+FROM node:20-bookworm-slim AS runner
+
+WORKDIR /app
+
+# Install runtime utilities needed by agents and developers
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    openssh-client \
+    tmux \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy compiled artifacts & node dependencies from builder
+COPY --from=builder /app /app
+
+# Set workspace directory for host projects
+RUN mkdir -p /workspace
+WORKDIR /workspace
+
+ENV NODE_ENV=production
+ENV PORT=3773
+ENV HOST=0.0.0.0
+
+EXPOSE 3773
+
+# Start NALAR server
+CMD ["pnpm", "--dir", "/app", "run", "--filter", "@t3/server", "start", "--host", "0.0.0.0", "--port", "3773"]

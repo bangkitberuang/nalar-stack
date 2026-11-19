@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  nalar:
+    build:
+      context: .
+      dockerfile: Dockerfile.nalar
+    container_name: nalar_engine
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3773
+    volumes:
+      # Mount directory project VPS Anda ke dalam workspace container
+      - ${HOST_PROJECTS_DIR:-~/projects}:/workspace
+      - ~/.gitconfig:/root/.gitconfig:ro
+    networks:
+      - nalar_network
+
+  authelia:
+    image: authelia/authelia:latest
+    container_name: nalar_authelia
+    restart: unless-stopped
+    volumes:
+      - ./authelia/config:/config
+    environment:
+      - TZ=Asia/Jakarta
+      - AUTHELIA_JWT_SECRET=${JWT_SECRET:-ganti_dengan_jwt_secret_acak_panjang}
+      - AUTHELIA_SESSION_SECRET=${SESSION_SECRET:-ganti_dengan_session_secret_acak_panjang}
+      - AUTHELIA_STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY:-ganti_dengan_encryption_key_acak_panjang}
+    networks:
+      - nalar_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nalar_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - nalar
+      - authelia
+    networks:
+      - nalar_network
+
+  certbot:
+    image: certbot/certbot
+    container_name: nalar_certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+networks:
+  nalar_network:
+    driver: bridge
