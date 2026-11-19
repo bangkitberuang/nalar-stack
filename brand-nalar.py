@@ -78,22 +78,44 @@ def patch_js_assets():
 
         updated = src
 
-        # 1. Replace main header T3 SVG + "Code" wordmark with official green NALAR logo + "NALAR"
+        # 1. Replace main header T3 SVG + "Code" wordmark with larger (+70%) official green NALAR logo + "NALAR"
         updated = re.sub(
             r'\(0,Z\.jsx\)\(yv,\{"aria-label":`T3`,className:`h-\[1cap\] w-auto shrink-0`\}\)',
-            '(0,Z.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-4 w-4 shrink-0 object-contain`})',
+            '(0,Z.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-7 w-7 shrink-0 object-contain`})',
             updated,
         )
         updated = updated.replace(
+            'src:`/nalar-logo.png`,alt:`NALAR`,className:`h-4 w-4 shrink-0 object-contain`',
+            'src:`/nalar-logo.png`,alt:`NALAR`,className:`h-7 w-7 shrink-0 object-contain`',
+        )
+        updated = updated.replace(
             'className:`inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight`,children:[r,(0,Z.jsx)(`span`,{className:a,children:`Code`})]',
+            'className:`inline-flex min-w-0 items-center gap-2 text-2xl font-semibold tracking-tight`,children:[r,(0,Z.jsx)(`span`,{className:a,children:`NALAR`})]',
+        )
+        updated = updated.replace(
             'className:`inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold tracking-tight`,children:[r,(0,Z.jsx)(`span`,{className:a,children:`NALAR`})]',
+            'className:`inline-flex min-w-0 items-center gap-2 text-2xl font-semibold tracking-tight`,children:[r,(0,Z.jsx)(`span`,{className:a,children:`NALAR`})]',
+        )
+        updated = re.sub(
+            r'(ml-\[var\(--workspace-titlebar-content-left\)\] hidden )h-7( w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex`,r\),t\[0\]=r,t\[1\]=i\);let a;t\[2\]===n\?a=t\[3\]:\(a=\(0,Z\.jsx\)\(hB,\{onBackdrop:n\}\))',
+            r'\1h-9\2',
+            updated,
+        )
+        # Also handle fresh (unpatched) T3 bundle where NALAR home was still T3 home before step 3
+        updated = updated.replace(
+            'ml-[var(--workspace-titlebar-content-left)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex',
+            'ml-[var(--workspace-titlebar-content-left)] hidden h-9 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex',
         )
 
         # 2. Replace standalone (/pair) T3 SVG + "Code" wordmark with official green NALAR logo + "NALAR"
         updated = re.sub(
             r'className:`flex items-baseline gap-1\.5`,role:`img`,"aria-label":`T3 Code`,children:\[\(0,i\.jsx\)\(a,\{[^}]+\}\),\(0,i\.jsx\)\(`span`,\{className:`text-lg font-medium tracking-tight`,children:`Code`\}\)\]',
-            'className:`flex items-center gap-2`,role:`img`,"aria-label":`NALAR`,children:[(0,i.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-6 w-6 shrink-0 object-contain`}),(0,i.jsx)(`span`,{className:`text-lg font-semibold tracking-tight text-foreground`,children:`NALAR`})]',
+            'className:`flex items-center gap-2.5`,role:`img`,"aria-label":`NALAR`,children:[(0,i.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-8 w-8 shrink-0 object-contain`}),(0,i.jsx)(`span`,{className:`text-2xl font-semibold tracking-tight text-foreground`,children:`NALAR`})]',
             updated,
+        )
+        updated = updated.replace(
+            'className:`flex items-center gap-2`,role:`img`,"aria-label":`NALAR`,children:[(0,i.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-6 w-6 shrink-0 object-contain`}),(0,i.jsx)(`span`,{className:`text-lg font-semibold tracking-tight text-foreground`,children:`NALAR`})]',
+            'className:`flex items-center gap-2.5`,role:`img`,"aria-label":`NALAR`,children:[(0,i.jsx)(`img`,{src:`/nalar-logo.png`,alt:`NALAR`,className:`h-8 w-8 shrink-0 object-contain`}),(0,i.jsx)(`span`,{className:`text-2xl font-semibold tracking-tight text-foreground`,children:`NALAR`})]',
         )
 
         # 3. Replace any remaining aria-label:`T3` and all visible "T3 Code" display strings -> "NALAR"
