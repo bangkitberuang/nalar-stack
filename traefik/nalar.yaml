@@ -1,0 +1,68 @@
+# Traefik Dynamic Config untuk NALAR + Authelia 2FA (Coolify Proxy)
+# File ini otomatis di-copy oleh deploy.sh ke /data/coolify/proxy/dynamic/nalar.yaml
+
+http:
+  middlewares:
+    nalar-redirect-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    nalar-authelia:
+      forwardAuth:
+        address: "http://nalar-authelia:9091/api/authz/forward-auth?authelia_url=https%3A%2F%2Fauth.bangkit.io%2F"
+        trustForwardHeader: true
+        maxResponseBodySize: 8192
+        authResponseHeaders:
+          - "Remote-User"
+          - "Remote-Groups"
+          - "Remote-Name"
+          - "Remote-Email"
+
+  routers:
+    # 1. Portal Login 2FA Google Authenticator (auth.bangkit.io)
+    nalar-auth-http:
+      entryPoints:
+        - http
+      rule: Host(`auth.bangkit.io`)
+      service: nalar-authelia-service
+      middlewares:
+        - nalar-redirect-https
+
+    nalar-auth-https:
+      entryPoints:
+        - https
+      rule: Host(`auth.bangkit.io`)
+      service: nalar-authelia-service
+      tls:
+        certResolver: letsencrypt
+
+    # 2. Dashboard NALAR AI Coding Harness (nalar.bangkit.io) — terkunci 2FA
+    nalar-app-http:
+      entryPoints:
+        - http
+      rule: Host(`nalar.bangkit.io`)
+      service: nalar-engine-service
+      middlewares:
+        - nalar-redirect-https
+
+    nalar-app-https:
+      entryPoints:
+        - https
+      rule: Host(`nalar.bangkit.io`)
+      service: nalar-engine-service
+      middlewares:
+        - nalar-authelia
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    nalar-authelia-service:
+      loadBalancer:
+        servers:
+          - url: "http://nalar-authelia:9091"
+
+    nalar-engine-service:
+      loadBalancer:
+        servers:
+          - url: "http://nalar-engine:3773"

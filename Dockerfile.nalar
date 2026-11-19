@@ -1,57 +1,53 @@
-# Multi-stage Dockerfile for NALAR (Branded T3 Code Harness)
-FROM node:20-bookworm-slim AS builder
+# Fast, production-ready Dockerfile for NALAR (Branded T3 Code Harness)
+FROM node:22-bookworm-slim
 
-WORKDIR /app
+ARG T3_VERSION=0.1.10
 
-# Install build essentials & git
-RUN apt-get update && apt-get install -y \
-    git \
-    python3 \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Clone upstream repository
-RUN git clone --depth 1 https://github.com/pingdotgg/t3code.git .
-
-# Apply NALAR Branding to web frontend
-RUN sed -i 's/<title>T3 Code<\/title>/<title>NALAR | AI Coding Harness<\/title>/g' apps/web/index.html || true
-RUN find apps/web/src -type f \( -name "*.tsx" -o -name "*.ts" \) -exec sed -i 's/"T3 Code"/"NALAR"/g; s/>T3 Code</>NALAR</g; s/T3Code/NALAR/g' {} + || true
-
-# Install dependencies and build
-RUN pnpm install
-RUN pnpm build
-
-# --- Runtime Stage ---
-FROM node:20-bookworm-slim AS runner
-
-WORKDIR /app
-
-# Install runtime utilities needed by coding agents
-RUN apt-get update && apt-get install -y \
+# Install dev tools and agent runtime utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
     openssh-client \
     tmux \
+    python3 \
+    ripgrep \
+    jq \
     procps \
+    tar \
+    gzip \
+    unzip \
+    bash \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy compiled artifacts & node dependencies from builder
-COPY --from=builder /app /app
+# Download prebuilt T3 Code Linux x64 release into /opt/nalar
+RUN mkdir -p /opt/nalar && \
+    curl -fsSL "https://github.com/pingdotgg/t3code/releases/download/v${T3_VERSION}/t3-${T3_VERSION}-linux-x64.tar.gz" \
+    | tar -xz --strip-components=1 -C /opt/nalar && \
+    chmod +x /opt/nalar/t3 && \
+    ln -sf /opt/nalar/t3 /usr/local/bin/t3 && \
+    ln -sf /opt/nalar/t3 /usr/local/bin/nalar
 
-# Create persistent data & workspace directories
-RUN mkdir -p /workspace /data
+# Apply NALAR branding to web UI & PWA manifest (so "Add to Home Screen" shows NALAR)
+RUN sed -i 's/<title>[^<]*<\/title>/<title>NALAR — AI Coding Harness<\/title>/g' /opt/nalar/client/index.html && \
+    sed -i 's/T3 Code/NALAR/g' /opt/nalar/client/index.html && \
+    sed -i 's/"T3 Code"/"NALAR"/g; s/"T3"/"NALAR"/g' /opt/nalar/client/manifest.webmanifest && \
+    find /opt/nalar/client/assets -type f -name "*.js" -exec sed -i 's/"T3 Code"/"NALAR"/g; s/>T3 Code</>NALAR</g' {} +
+
+# Pre-install popular AI coding agent CLIs (Claude Code & OpenAI Codex)
+RUN npm install -g @anthropic-ai/claude-code @openai/codex && npm cache clean --force
+
+# Persistent data/home & workspace mount points
+RUN mkdir -p /data/home /data/t3 /workspace
 WORKDIR /workspace
 
-ENV NODE_ENV=production
+ENV HOME=/data/home
+ENV T3CODE_HOME=/data/t3
 ENV T3CODE_HOST=0.0.0.0
-ENV PORT=3773
+ENV T3CODE_PORT=3773
+ENV T3CODE_NO_BROWSER=true
+ENV NODE_ENV=production
 
 EXPOSE 3773
 
-# Start NALAR server directly via compiled bin.mjs
-CMD ["node", "/app/apps/server/dist/bin.mjs", "serve", "--host", "0.0.0.0", "--port", "3773", "--base-dir", "/data"]
+CMD ["/opt/nalar/t3", "serve", "--host", "0.0.0.0", "--port", "3773", "--base-dir", "/data/t3"]

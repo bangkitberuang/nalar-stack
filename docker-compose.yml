@@ -3,23 +3,27 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.nalar
-    container_name: nalar_engine
+    container_name: nalar-engine
     restart: unless-stopped
     environment:
-      - NODE_ENV=production
+      - HOME=/data/home
+      - T3CODE_HOME=/data/t3
       - T3CODE_HOST=0.0.0.0
-      - PORT=3773
+      - T3CODE_PORT=3773
+      - T3CODE_NO_BROWSER=true
+      - TZ=Asia/Jakarta
     volumes:
-      # Folder project di VPS yang akan dikerjakan NALAR
-      - ${HOST_PROJECTS_DIR:-./projects}:/workspace
-      # Penyimpanan permanen state & konfigurasi NALAR
+      # Mount direktori project VPS Anda agar bisa dikerjakan langsung oleh NALAR
+      - ${HOST_PROJECTS_DIR:-/root}:/workspace
+      # Penyimpanan permanen database NALAR, pairing session, dan login CLI AI
       - nalar_data:/data
     networks:
+      - coolify
       - nalar_network
 
   authelia:
     image: authelia/authelia:4.38
-    container_name: nalar_authelia
+    container_name: nalar-authelia
     restart: unless-stopped
     volumes:
       - ./authelia/config:/config
@@ -29,37 +33,14 @@ services:
       - AUTHELIA_SESSION_SECRET=${SESSION_SECRET}
       - AUTHELIA_STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
     networks:
+      - coolify
       - nalar_network
-
-  nginx:
-    image: nginx:alpine
-    container_name: nalar_proxy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
-    depends_on:
-      - nalar
-      - authelia
-    networks:
-      - nalar_network
-
-  certbot:
-    image: certbot/certbot
-    container_name: nalar_certbot
-    restart: unless-stopped
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   nalar_data:
 
 networks:
+  coolify:
+    external: true
   nalar_network:
     driver: bridge

@@ -1,45 +1,42 @@
-# NALAR AI Coding Harness (Self-Hosted on Docker)
-*Personal AI agent harness dengan proteksi Google Authenticator (TOTP) 2FA*
+# NALAR AI Coding Harness (Docker + Coolify Traefik + Authelia 2FA)
+*Personal AI coding agent harness dengan branding **NALAR** dan proteksi **Google Authenticator (TOTP)**.*
 
 Stack:
-- **NALAR Engine** (Custom-branded `pingdotgg/t3code` Agent Control Plane)
-- **Authelia v4.38** (Portal login 2FA / Google Authenticator TOTP)
-- **Nginx Reverse Proxy** (HTTPS + WebSocket streaming + Authelia `auth_request`)
-- **Certbot** (SSL Let's Encrypt otomatis & auto-renew)
+- **`nalar-engine`**: Custom-branded `pingdotgg/t3code` (prebuilt release + branding NALAR + PWA manifest + pre-installed `claude` & `codex` CLIs).
+- **`nalar-authelia`**: Authelia v4.38 2FA portal (`auth.bangkit.io`) menggunakan Google Authenticator.
+- **Coolify Traefik (`coolify-proxy`)**: Reverse proxy & SSL Let's Encrypt otomatis via `/data/coolify/proxy/dynamic/nalar.yaml` (tanpa bentrok port 80/443).
 
 ---
 
-## Langkah Deployment di VPS
+## Cara Deploy / Update di VPS
 
-### 1. Siapkan DNS (Panel Domain `bangkit.io`)
-Tambahkan 2 A-Record menuju IP publik VPS Anda:
-- `nalar` -> `IP_VPS_ANDA`
-- `auth` -> `IP_VPS_ANDA`
-
-### 2. Clone Repo di VPS
 ```bash
-git clone <URL_REPO_ANDA> ~/nalar-stack
-cd ~/nalar-stack
-```
-
-### 3. Buat User & Password Admin
-```bash
-cp authelia/config/users_database.yml.example authelia/config/users_database.yml
-docker run --rm -it authelia/authelia:4.38 authelia crypto hash generate argon2
-```
-Salin teks setelah `Digest:` (mulai dari `$argon2id$...`), lalu tempel ke baris `password:` di `authelia/config/users_database.yml`.
-
-### 4. Jalankan Deploy Otomatis
-```bash
+cd /root/nalar-stack
+git pull
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-### 5. Daftar Google Authenticator di HP
-1. Buka `https://auth.bangkit.io` di HP, login dengan user `admin` + password Anda.
-2. Di terminal VPS, ambil link aktivasi QR Code:
-   ```bash
-   cat authelia/config/notification.txt
-   ```
-3. Buka link tersebut di HP, scan QR Code dengan **Google Authenticator**.
-4. Buka `https://nalar.bangkit.io` — selesai!
+## Perintah Penting di VPS
+
+- **Cek link aktivasi QR Google Authenticator:**
+  ```bash
+  cat /root/nalar-stack/authelia/config/notification.txt
+  ```
+- **Ganti password user `admin`:**
+  ```bash
+  docker run --rm -it authelia/authelia:4.38 authelia crypto hash generate argon2
+  # Paste hasil Digest ke /root/nalar-stack/authelia/config/users_database.yml
+  docker restart nalar-authelia
+  ```
+- **Pairing HP ke NALAR (jika diminta pairing code):**
+  ```bash
+  docker exec -it nalar-engine nalar pair --base-dir /data/t3
+  ```
+- **Login AI Provider CLI di dalam container NALAR:**
+  ```bash
+  # Claude Code:
+  docker exec -it nalar-engine claude auth login
+  # OpenAI Codex:
+  docker exec -it nalar-engine codex login
+  ```
